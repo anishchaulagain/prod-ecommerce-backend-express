@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as AuthService from "../services/auth.service";
 import { z } from "zod";
+import { AuthRequest } from "../middlewares/auth.middleware";
+import User from "../models/user.model";
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -32,7 +34,8 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
   try {
     const { email, otp } = verifyOtpSchema.parse(req.body);
     const result = await AuthService.verifyOtp(email, otp);
-    res.status(200).json(result);
+    const { accessToken, refreshToken } = result;
+    res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
   } catch (error: any) {
     next(error);
   }
@@ -42,7 +45,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await AuthService.loginUser(email, password);
-    res.status(200).json(result);
+    const { accessToken, refreshToken } = result;
+    res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
   } catch (error: any) {
     next(error);
   }
@@ -76,10 +80,30 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
             throw new Error("Invalid code from Google");
         }
         const result = await AuthService.googleLogin(code);
+        const { accessToken, refreshToken } = result;
         // For now return tokens in JSON. 
         // In a real app, you might redirect to frontend with tokens in URL params or Set-Cookie
-        res.status(200).json(result);
+        res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
     } catch (error: any) {
         next(error);
     }
-}
+};
+
+export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    console.log("getMe called for userId:", req.user?.userId);
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await User.findById(req.user.userId).select("-password -otp -otpExpires");
+    if (!user) {
+      console.log("User not found in DB for ID:", req.user.userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+    console.log("User data retrieved for email:", user.email);
+    res.status(200).json(user);
+  } catch (error: any) {
+    console.error("Error in getMe:", error);
+    next(error);
+  }
+};

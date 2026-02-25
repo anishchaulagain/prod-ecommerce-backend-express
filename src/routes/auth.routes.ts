@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as AuthController from "../controllers/auth.controller";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
 
@@ -154,5 +155,23 @@ router.get("/google", AuthController.googleAuth);
  *         description: Invalid code or login failed
  */
 router.get("/google/callback", AuthController.googleCallback);
+
+/**
+ * @swagger
+ * /api/v1/auth/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User details
+ *       401:
+ *         description: Not authenticated
+ *       404:
+ *         description: User not found
+ */
+router.get("/me", authenticate, AuthController.getMe);
 
 export default router;
