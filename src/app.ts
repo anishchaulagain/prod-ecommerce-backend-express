@@ -4,6 +4,7 @@ import routes from "./routes";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger";
 import { errorHandler } from "./middlewares/error.middleware";
+import connectDB from "./config/db";
 
 const app = express();
 
@@ -14,6 +15,16 @@ app.use(cors(
     }
 ));
 app.use(express.json());
+
+// Ensure MongoDB is connected before handling requests (critical for Vercel serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
 
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css";
 

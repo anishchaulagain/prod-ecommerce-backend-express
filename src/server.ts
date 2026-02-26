@@ -1,4 +1,3 @@
-import { start } from "repl";
 import app from "./app";
 import { PORT } from "./config/env";
 import connectDB from "./config/db";
@@ -13,3 +12,6 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Export for Vercel serverless
+export default app;
