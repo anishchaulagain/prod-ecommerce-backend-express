@@ -7,7 +7,9 @@ exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const env_1 = require("../config/env");
 const authenticate = (req, res, next) => {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
+    // Try cookie first, then fall back to Authorization header
+    const token = req.cookies?.accessToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
     if (!token) {
         return res.status(401).json({ message: "Access denied. No token provided." });
     }

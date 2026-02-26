@@ -32,10 +32,14 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.googleCallback = exports.googleAuth = exports.refreshToken = exports.login = exports.verifyOtp = exports.register = void 0;
+exports.getMe = exports.logout = exports.googleCallback = exports.googleAuth = exports.refreshToken = exports.login = exports.verifyOtp = exports.register = void 0;
 const AuthService = __importStar(require("../services/auth.service"));
 const zod_1 = require("zod");
+const user_model_1 = __importDefault(require("../models/user.model"));
 const registerSchema = zod_1.z.object({
     email: zod_1.z.string().email("Invalid email address"),
     name: zod_1.z.string().min(2, "Name must be at least 2 characters"),
@@ -49,6 +53,31 @@ const loginSchema = zod_1.z.object({
     email: zod_1.z.string().email("Invalid email address"),
     password: zod_1.z.string().min(1, "Password is required"),
 });
+// ── Cookie helper ──────────────────────────────────────────────────────────────
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const COOKIE_OPTIONS_ACCESS = {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: IS_PRODUCTION ? "none" : "lax",
+    maxAge: 15 * 60 * 1000, // 15 minutes
+    path: "/",
+};
+const COOKIE_OPTIONS_REFRESH = {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: IS_PRODUCTION ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
+};
+const setAuthCookies = (res, accessToken, refreshToken) => {
+    res.cookie("accessToken", accessToken, COOKIE_OPTIONS_ACCESS);
+    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS_REFRESH);
+};
+const clearAuthCookies = (res) => {
+    res.clearCookie("accessToken", { path: "/" });
+    res.clearCookie("refreshToken", { path: "/" });
+};
+// ── Controllers ────────────────────────────────────────────────────────────────
 const register = async (req, res, next) => {
     try {
         const { email, name, password } = registerSchema.parse(req.body);
@@ -64,7 +93,8 @@ const verifyOtp = async (req, res, next) => {
     try {
         const { email, otp } = verifyOtpSchema.parse(req.body);
         const result = await AuthService.verifyOtp(email, otp);
-        res.status(200).json(result);
+        setAuthCookies(res, result.accessToken, result.refreshToken);
+        res.status(200).json({ message: "Login successful" });
     }
     catch (error) {
         next(error);
@@ -75,7 +105,8 @@ const login = async (req, res, next) => {
     try {
         const { email, password } = loginSchema.parse(req.body);
         const result = await AuthService.loginUser(email, password);
-        res.status(200).json(result);
+        setAuthCookies(res, result.accessToken, result.refreshToken);
+        res.status(200).json({ message: "Login successful" });
     }
     catch (error) {
         next(error);
@@ -84,11 +115,13 @@ const login = async (req, res, next) => {
 exports.login = login;
 const refreshToken = async (req, res, next) => {
     try {
-        const { token } = req.body;
+        // Read refresh token from cookie (fallback to body for backward compat)
+        const token = req.cookies?.refreshToken || req.body.token;
         if (!token)
-            throw new Error("Token required");
+            throw new Error("Refresh token required");
         const accessToken = await AuthService.refreshAccessToken(token);
-        res.status(200).json({ accessToken });
+        res.cookie("accessToken", accessToken, COOKIE_OPTIONS_ACCESS);
+        res.status(200).json({ message: "Token refreshed" });
     }
     catch (error) {
         next(error);
@@ -98,7 +131,6 @@ exports.refreshToken = refreshToken;
 const googleAuth = async (req, res, next) => {
     try {
         const url = AuthService.getGoogleAuthUrl();
-        // Redirect the user to Google's consent page
         res.redirect(url);
     }
     catch (error) {
@@ -113,12 +145,37 @@ const googleCallback = async (req, res, next) => {
             throw new Error("Invalid code from Google");
         }
         const result = await AuthService.googleLogin(code);
-        // For now return tokens in JSON. 
-        // In a real app, you might redirect to frontend with tokens in URL params or Set-Cookie
-        res.status(200).json(result);
+        setAuthCookies(res, result.accessToken, result.refreshToken);
+        res.status(200).json({ message: "Login successful" });
     }
     catch (error) {
         next(error);
     }
 };
 exports.googleCallback = googleCallback;
+const logout = async (_req, res, next) => {
+    try {
+        clearAuthCookies(res);
+        res.status(200).json({ message: "Logged out successfully" });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.logout = logout;
+const getMe = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Not authenticated" });
+        }
+        const user = await user_model_1.default.findById(req.user.userId).select("-password -otp -otpExpires");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getMe = getMe;

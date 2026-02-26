@@ -15,3 +15,5 @@ const startServer = async () => {
     });
 };
 startServer();
+// Export for Vercel serverless
+exports.default = app_1.default;

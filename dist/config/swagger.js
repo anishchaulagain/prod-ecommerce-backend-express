@@ -15,9 +15,13 @@ const options = {
         },
         servers: [
             {
-                url: process.env.BASE_URL || "http://localhost:8000",
+                url: "http://localhost:8000",
                 description: 'Development server',
             },
+            {
+                url: process.env.BASE_URL,
+                description: 'Production server',
+            }
         ],
         components: {
             securitySchemes: {
