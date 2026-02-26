@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import routes from "./routes";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./config/swagger";
@@ -15,6 +16,7 @@ app.use(cors(
     }
 ));
 app.use(express.json());
+app.use(cookieParser());
 
 // Ensure MongoDB is connected before handling requests (critical for Vercel serverless)
 app.use(async (req, res, next) => {

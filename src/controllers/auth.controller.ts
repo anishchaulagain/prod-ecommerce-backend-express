@@ -20,6 +20,38 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// ── Cookie helper ──────────────────────────────────────────────────────────────
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+const COOKIE_OPTIONS_ACCESS = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: IS_PRODUCTION ? ("none" as const) : ("lax" as const),
+  maxAge: 15 * 60 * 1000, // 15 minutes
+  path: "/",
+};
+
+const COOKIE_OPTIONS_REFRESH = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: IS_PRODUCTION ? ("none" as const) : ("lax" as const),
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: "/",
+};
+
+const setAuthCookies = (res: Response, accessToken: string, refreshToken: string) => {
+  res.cookie("accessToken", accessToken, COOKIE_OPTIONS_ACCESS);
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS_REFRESH);
+};
+
+const clearAuthCookies = (res: Response) => {
+  res.clearCookie("accessToken", { path: "/" });
+  res.clearCookie("refreshToken", { path: "/" });
+};
+
+// ── Controllers ────────────────────────────────────────────────────────────────
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, name, password } = registerSchema.parse(req.body);
@@ -34,8 +66,8 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
   try {
     const { email, otp } = verifyOtpSchema.parse(req.body);
     const result = await AuthService.verifyOtp(email, otp);
-    const { accessToken, refreshToken } = result;
-    res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    res.status(200).json({ message: "Login successful" });
   } catch (error: any) {
     next(error);
   }
@@ -45,8 +77,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await AuthService.loginUser(email, password);
-    const { accessToken, refreshToken } = result;
-    res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    res.status(200).json({ message: "Login successful" });
   } catch (error: any) {
     next(error);
   }
@@ -54,10 +86,12 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
 export const refreshToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token } = req.body;
-    if (!token) throw new Error("Token required");
+    // Read refresh token from cookie (fallback to body for backward compat)
+    const token = req.cookies?.refreshToken || req.body.token;
+    if (!token) throw new Error("Refresh token required");
     const accessToken = await AuthService.refreshAccessToken(token);
-    res.status(200).json({ accessToken });
+    res.cookie("accessToken", accessToken, COOKIE_OPTIONS_ACCESS);
+    res.status(200).json({ message: "Token refreshed" });
   } catch (error: any) {
     next(error);
   }
@@ -66,7 +100,6 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 export const googleAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const url = AuthService.getGoogleAuthUrl();
-        // Redirect the user to Google's consent page
         res.redirect(url); 
     } catch (error: any) {
         next(error);
@@ -80,30 +113,33 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
             throw new Error("Invalid code from Google");
         }
         const result = await AuthService.googleLogin(code);
-        const { accessToken, refreshToken } = result;
-        // For now return tokens in JSON. 
-        // In a real app, you might redirect to frontend with tokens in URL params or Set-Cookie
-        res.status(200).json({ accessToken, refreshToken, message: "Login successful" });
+        setAuthCookies(res, result.accessToken, result.refreshToken);
+        res.status(200).json({ message: "Login successful" });
     } catch (error: any) {
         next(error);
     }
 };
 
+export const logout = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    clearAuthCookies(res);
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error: any) {
+    next(error);
+  }
+};
+
 export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    console.log("getMe called for userId:", req.user?.userId);
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     const user = await User.findById(req.user.userId).select("-password -otp -otpExpires");
     if (!user) {
-      console.log("User not found in DB for ID:", req.user.userId);
       return res.status(404).json({ message: "User not found" });
     }
-    console.log("User data retrieved for email:", user.email);
     res.status(200).json(user);
   } catch (error: any) {
-    console.error("Error in getMe:", error);
     next(error);
   }
 };

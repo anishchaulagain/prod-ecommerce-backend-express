@@ -64,7 +64,7 @@ router.post("/register", AuthController.register);
  *                 type: string
  *     responses:
  *       200:
- *         description: Login successful, tokens returned
+ *         description: Login successful, tokens set as HTTP-only cookies
  *       400:
  *         description: Invalid OTP
  */
@@ -92,7 +92,7 @@ router.post("/verify-otp", AuthController.verifyOtp);
  *                 type: string
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful, tokens set as HTTP-only cookies
  *       400:
  *         description: Invalid credentials
  */
@@ -102,26 +102,27 @@ router.post("/login", AuthController.login);
  * @swagger
  * /api/v1/auth/refresh-token:
  *   post:
- *     summary: Refresh Access Token
+ *     summary: Refresh Access Token (reads refresh token from cookie)
  *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *             properties:
- *               token:
- *                 type: string
  *     responses:
  *       200:
- *         description: New Access Token
+ *         description: New access token set as HTTP-only cookie
  *       401:
  *         description: Invalid or expired refresh token
  */
 router.post("/refresh-token", AuthController.refreshToken);
+
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: Logout and clear auth cookies
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post("/logout", AuthController.logout);
 
 /**
  * @swagger
@@ -150,7 +151,7 @@ router.get("/google", AuthController.googleAuth);
  *         description: Authorization code from Google
  *     responses:
  *       200:
- *         description: Login successful, returns tokens
+ *         description: Login successful, tokens set as HTTP-only cookies
  *       400:
  *         description: Invalid code or login failed
  */
@@ -160,7 +161,7 @@ router.get("/google/callback", AuthController.googleCallback);
  * @swagger
  * /api/v1/auth/me:
  *   get:
- *     summary: Get current authenticated user
+ *     summary: Get current authenticated user (fresh from DB)
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
