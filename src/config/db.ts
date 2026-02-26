@@ -25,7 +25,7 @@ const connectDB = async () => {
       })
       .catch((error) => {
         cached.promise = null;
-        console.error(`MongoDB Connection Error: ${error}`);
+        console.error(`MongoDB Connection Error, View Here: ${error}`);
         throw error;
       });
   }
