@@ -94,7 +94,11 @@ const verifyOtp = async (req, res, next) => {
         const { email, otp } = verifyOtpSchema.parse(req.body);
         const result = await AuthService.verifyOtp(email, otp);
         setAuthCookies(res, result.accessToken, result.refreshToken);
-        res.status(200).json({ message: "Login successful" });
+        res.status(200).json({
+            message: "Login successful",
+            // Include tokens in response body for development (Swagger UI)
+            ...(!IS_PRODUCTION && { accessToken: result.accessToken, refreshToken: result.refreshToken }),
+        });
     }
     catch (error) {
         next(error);
@@ -106,7 +110,10 @@ const login = async (req, res, next) => {
         const { email, password } = loginSchema.parse(req.body);
         const result = await AuthService.loginUser(email, password);
         setAuthCookies(res, result.accessToken, result.refreshToken);
-        res.status(200).json({ message: "Login successful" });
+        res.status(200).json({
+            message: "Login successful",
+            ...(!IS_PRODUCTION && { accessToken: result.accessToken, refreshToken: result.refreshToken }),
+        });
     }
     catch (error) {
         next(error);
@@ -121,7 +128,10 @@ const refreshToken = async (req, res, next) => {
             throw new Error("Refresh token required");
         const accessToken = await AuthService.refreshAccessToken(token);
         res.cookie("accessToken", accessToken, COOKIE_OPTIONS_ACCESS);
-        res.status(200).json({ message: "Token refreshed" });
+        res.status(200).json({
+            message: "Token refreshed",
+            ...(!IS_PRODUCTION && { accessToken }),
+        });
     }
     catch (error) {
         next(error);
@@ -146,7 +156,10 @@ const googleCallback = async (req, res, next) => {
         }
         const result = await AuthService.googleLogin(code);
         setAuthCookies(res, result.accessToken, result.refreshToken);
-        res.status(200).json({ message: "Login successful" });
+        res.status(200).json({
+            message: "Login successful",
+            ...(!IS_PRODUCTION && { accessToken: result.accessToken, refreshToken: result.refreshToken }),
+        });
     }
     catch (error) {
         next(error);

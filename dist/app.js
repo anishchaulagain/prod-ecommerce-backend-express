@@ -37,6 +37,9 @@ app.use("/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.defaul
         "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js",
     ],
     customSiteTitle: "Shop Us API Documentation",
+    swaggerOptions: {
+        withCredentials: true,
+    },
 }));
 /**
  * @swagger
