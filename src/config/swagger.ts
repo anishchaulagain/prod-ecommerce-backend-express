@@ -11,13 +11,9 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: "http://localhost:8000",
-        description: 'Development server',
+        url: "/",
+        description: "Current server",
       },
-       {
-        url: process.env.BASE_URL ,
-        description: 'Production server',
-      }
     ],
     components: {
       securitySchemes: {
