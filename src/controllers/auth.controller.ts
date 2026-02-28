@@ -62,19 +62,19 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, otp } = verifyOtpSchema.parse(req.body);
-    const result = await AuthService.verifyOtp(email, otp);
-    setAuthCookies(res, result.accessToken, result.refreshToken);
-    res.status(200).json({
-      message: "Login successful",
-      // Include tokens in response body for development (Swagger UI)
-      ...(!IS_PRODUCTION && { accessToken: result.accessToken, refreshToken: result.refreshToken }),
-    });
-  } catch (error: any) {
-    next(error);
-  }
+  export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, otp } = verifyOtpSchema.parse(req.body);
+      const result = await AuthService.verifyOtp(email, otp);
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+      res.status(200).json({
+        message: "Login successful",
+       // Include tokens in response body for development (Swagger UI)
+        ...(!IS_PRODUCTION && { accessToken: result.accessToken, refreshToken: result.refreshToken }),
+      });
+    } catch (error: any) {
+      next(error);
+    }
 };
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
